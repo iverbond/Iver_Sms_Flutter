@@ -1,4 +1,4 @@
-name: Iver SMS
+name: IverSMS
 description: "Iver SMS is a simple SMS application that allows you to send SMS to your contacts."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.

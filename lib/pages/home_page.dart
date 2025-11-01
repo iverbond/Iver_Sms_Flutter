@@ -37,23 +37,52 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
+  // Fonction helper pour trouver un contact dans selectedContacts par numéro
+  int? _findSelectedContactIndex(Map<String, String> contact) {
+    final numero = contact['numero'] ?? '';
+    for (int i = 0; i < selectedContacts.length; i++) {
+      if (selectedContacts[i]['numero'] == numero) {
+        return i;
+      }
+    }
+    return null;
+  }
+
+  // Fonction helper pour vérifier si un contact est sélectionné
+  bool _isContactSelected(Map<String, String> contact) {
+    return _findSelectedContactIndex(contact) != null;
+  }
+
   void toggleAll() {
     setState(() {
       if (allSelected) {
         selectedContacts.clear();
       } else {
-        selectedContacts = List.from(contacts);
+        // Ajouter uniquement les contacts qui ne sont pas déjà sélectionnés
+        for (var contact in contacts) {
+          if (!_isContactSelected(contact)) {
+            selectedContacts.add(Map.from(contact));
+          }
+        }
       }
     });
   }
 
   void toggleContact(Map<String, String> contact) {
     setState(() {
-      if (selectedContacts.contains(contact)) {
-        selectedContacts.remove(contact);
+      final index = _findSelectedContactIndex(contact);
+      if (index != null) {
+        selectedContacts.removeAt(index);
       } else {
-        selectedContacts.add(contact);
+        selectedContacts.add(Map.from(contact));
       }
+    });
+  }
+
+  // Fonction pour nettoyer les contacts sélectionnés
+  void clearSelectedContacts() {
+    setState(() {
+      selectedContacts.clear();
     });
   }
 
@@ -90,7 +119,7 @@ class _HomePageState extends State<HomePage> {
       if (response.data is List) {
         final List<dynamic> dataList = response.data;
         setState(() {
-          contacts = dataList.map((item) {
+          final newContacts = dataList.map((item) {
             return {
               'nom': item['nom']?.toString() ?? '',
               'numero': item['numero']?.toString() ?? '',
@@ -98,8 +127,23 @@ class _HomePageState extends State<HomePage> {
               'reseau': item['reseau']?.toString() ?? '',
             };
           }).toList();
-          // Réinitialiser les sélections après une nouvelle recherche
-          selectedContacts.clear();
+
+          // Garder uniquement les contacts sélectionnés qui existent dans la nouvelle liste
+          final selectedNumbers = selectedContacts
+              .map((c) => c['numero'] ?? '')
+              .toSet();
+
+          final newContactsNumbers = newContacts
+              .map((c) => c['numero'] ?? '')
+              .toSet();
+
+          // Filtrer selectedContacts pour ne garder que ceux présents dans la nouvelle recherche
+          selectedContacts.removeWhere((contact) {
+            final numero = contact['numero'] ?? '';
+            return !newContactsNumbers.contains(numero);
+          });
+
+          contacts = newContacts;
         });
       } else {
         throw Exception("Format de réponse invalide");
@@ -381,23 +425,48 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const Spacer(),
                 if (selectedContacts.isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade600,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      "${selectedContacts.length} sélectionné${selectedContacts.length > 1 ? 's' : ''}",
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade600,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          "${selectedContacts.length} sélectionné${selectedContacts.length > 1 ? 's' : ''}",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade400,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: IconButton(
+                          onPressed: clearSelectedContacts,
+                          icon: const Icon(
+                            Icons.clear,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          padding: const EdgeInsets.all(6),
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
+                          tooltip: "Nettoyer les sélections",
+                        ),
+                      ),
+                    ],
                   ),
               ],
             ),
@@ -441,7 +510,7 @@ class _HomePageState extends State<HomePage> {
                     itemCount: contacts.length,
                     itemBuilder: (context, index) {
                       final contact = contacts[index];
-                      final isSelected = selectedContacts.contains(contact);
+                      final isSelected = _isContactSelected(contact);
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 12),
